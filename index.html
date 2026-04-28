@@ -79,7 +79,7 @@
     const db = getFirestore(app);
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    function PremiumModal({ onClose, onRegister }) {
+    function PremiumModal({ onClose, onRegister, alertMessage }) {
       return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 print:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
@@ -90,6 +90,14 @@
               <p className="text-white/90 text-xs font-medium mt-1">Akses Tanpa Batas & Riwayat Cloud</p>
             </div>
             <div className="p-6">
+              
+              {/* --- NOTIFIKASI ALERT JIKA TOKEN HABIS --- */}
+              {alertMessage && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-[10px] p-3 rounded-xl text-center mb-4 font-black leading-relaxed shadow-sm uppercase tracking-wide">
+                  {alertMessage}
+                </div>
+              )}
+
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 text-center mb-6">
                 <p className="text-sm font-bold text-slate-700 mb-1">Dapatkan Kode Akses</p>
                 <p className="text-3xl font-black text-[#22c55e] mb-4 tracking-tight">Rp 25.000</p>
@@ -163,7 +171,10 @@
       const [isSaving, setIsSaving] = useState(false);
       const [historyList, setHistoryList] = useState([]);
       const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+      
       const [showPaymentModal, setShowPaymentModal] = useState(false);
+      const [paymentModalAlert, setPaymentModalAlert] = useState(''); // State pesan alert premium modal
+      
       const [guestTokenCount, setGuestTokenCount] = useState(5);
       const previewRef = useRef(null);
       const [notification, setNotification] = useState('');
@@ -207,7 +218,13 @@
           let dId = localStorage.getItem('pidato_device_id');
           const se = userProfile.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
           let currentUsage = 5 - guestTokenCount;
-          if (currentUsage >= 5) { setShowPaymentModal(true); return false; }
+          
+          if (currentUsage >= 5) { 
+            setPaymentModalAlert('Token gratis Anda sudah habis! Silakan Upgrade Premium untuk akses tanpa batas.');
+            setShowPaymentModal(true); 
+            return false; 
+          }
+          
           const nUsage = currentUsage + 1;
           try {
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'guestUsage', dId), { usage: nUsage, email: userProfile.email, lastUsed: new Date().toISOString() }, { merge: true });
@@ -301,7 +318,11 @@
       };
 
       const handleSaveToHistory = async () => {
-        if (isGuest) { setShowPaymentModal(true); return; }
+        if (isGuest) { 
+          setPaymentModalAlert('Fitur Simpan Riwayat Cloud hanya tersedia untuk pengguna Premium. Silakan Upgrade!');
+          setShowPaymentModal(true); 
+          return; 
+        }
         if (!formData.eventName) return showNotification("Isi nama acara.");
         setIsSaving(true);
         try {
@@ -311,7 +332,6 @@
             setIsSaving(false);
             return;
           }
-          // PERBAIKAN: Simpan sebagai nested object 'formData' agar konsisten saat dibaca
           await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'speeches'), { 
             formData: { ...formData }, 
             guests, 
@@ -332,7 +352,6 @@
       };
 
       const handleLoadHistoryItem = (item) => {
-        // PERBAIKAN: Handle data format lama (spread) dan format baru (nested)
         if (item.formData) {
           setFormData(item.formData);
         } else {
@@ -418,7 +437,14 @@
                   </div>
                 )}
                 
-                <button onClick={() => isGuest ? setShowPaymentModal(true) : setIsHistoryOpen(true)} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-xl border border-white/20 transition-colors shadow-lg text-sm font-semibold">
+                <button onClick={() => {
+                    if (isGuest) {
+                       setPaymentModalAlert(''); 
+                       setShowPaymentModal(true);
+                    } else {
+                       setIsHistoryOpen(true);
+                    }
+                }} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-5 py-2.5 rounded-xl border border-white/20 transition-colors shadow-lg text-sm font-semibold">
                   {isGuest ? (
                     <><Crown size={18} className="text-amber-400" /> UPGRADE</>
                   ) : (
@@ -574,7 +600,7 @@
                 </div>
               </div>
             </div>
-            {showPaymentModal && <PremiumModal onClose={() => setShowPaymentModal(false)} onRegister={() => { setShowPaymentModal(false); onGoToRegister(); }} />}
+            {showPaymentModal && <PremiumModal onClose={() => setShowPaymentModal(false)} onRegister={() => { setShowPaymentModal(false); onGoToRegister(); }} alertMessage={paymentModalAlert} />}
           </div>
 
           {isHistoryOpen && (
@@ -584,7 +610,7 @@
                 <div className="p-6 border-b flex justify-between items-center bg-slate-50/80">
                   <div>
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><History className="text-blue-600" /> Riwayat Naskah</h2>
-                    <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">KUOTA PENYIMPANAN: <span className={historyList.length >= 10 ? "text-red-500" : "text-emerald-500"}>{historyList.length}</span> / 10 NASKAH</p>
+                    <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">KUOTA PENYIMPANAN: <span className={historyList.length >= 10 ? "text-red-500" : "textemerald-500"}>{historyList.length}</span> / 10 NASKAH</p>
                   </div>
                   <button onClick={() => setIsHistoryOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors bg-white p-1 rounded-full"><X size={24} /></button>
                 </div>
@@ -600,7 +626,6 @@
                       {historyList.map(item => (
                         <div key={item.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center group">
                           <div className="flex-1">
-                            {/* PERBAIKAN: Gunakan optional chaining untuk eventName dari formData atau root level */}
                             <h3 className="font-bold text-slate-800 text-lg line-clamp-1">
                               {(item.formData?.eventName || item.eventName || 'Tanpa Nama Acara').toUpperCase()}
                             </h3>
@@ -733,6 +758,8 @@
 
     function GuestLoginForm({ setView, onGuestLoginSuccess, onGoToRegister }) {
       const [email, setEmail] = useState(''); const [error, setError] = useState(''); const [isChecking, setIsChecking] = useState(false); const [showPremiumModal, setShowPremiumModal] = useState(false);
+      const [modalAlert, setModalAlert] = useState(''); // State untuk pesan alert pada modal
+
       const hga = async (e) => {
         e.preventDefault(); setError(''); if (!email) return setError('MASUKKAN EMAIL.');
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) return setError('EMAIL TIDAK VALID.');
@@ -765,7 +792,14 @@
             cud = parseInt(localStorage.getItem('guestUsage_' + dId) || '0'); 
             cue = parseInt(localStorage.getItem('guestUsage_' + se) || '0'); 
           }
-          if (cud >= 5 || cue >= 5) { setShowPremiumModal(true); await signOut(auth); return; }
+          
+          // JIKA TOKEN HABIS, TAMPILKAN MODAL PREMIUM DENGAN NOTIFIKASI
+          if (cud >= 5 || cue >= 5) { 
+            setModalAlert('Token gratis Anda sudah habis! Silakan Upgrade Premium untuk mencoba sepuasnya.');
+            setShowPremiumModal(true); 
+            await signOut(auth); 
+            return; 
+          }
           
           if (GAS_WEB_APP_URL && cud === 0 && cue === 0) {
             try {
@@ -779,7 +813,6 @@
 
           const nUsage = Math.max(cud, cue) + 1;
           try {
-            // PERBAIKAN: Menambahkan keterangan role "TAMU" agar jelas di database Firebase
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'guestUsage', dId), { 
               usage: nUsage, 
               email: email, 
@@ -803,6 +836,7 @@
           onGuestLoginSuccess(email);
         } catch (err) { setError('GAGAL MEMUAT.'); await signOut(auth); } finally { setIsChecking(false); }
       };
+      
       return (
         <form onSubmit={hga} className="space-y-6">
           <div className="flex items-center gap-3 mb-2"><div className="w-1.5 h-6 bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div><h2 className="text-sm font-black text-white uppercase tracking-widest">AKSES TAMU</h2></div>
@@ -827,7 +861,9 @@
             <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest opacity-60">SUDAH PUNYA AKUN? </span>
             <button type="button" onClick={() => setView('login')} className="text-[10px] text-emerald-400 font-black hover:text-emerald-300 border-b-2 border-emerald-400 ml-1 uppercase tracking-widest pb-0.5">LOGIN</button>
           </div>
-          {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} onRegister={() => { setShowPremiumModal(false); onGoToRegister(); }} />}
+          
+          {/* Pop-up Premium dengan pesan peringatan jika token habis */}
+          {showPremiumModal && <PremiumModal onClose={() => setShowPremiumModal(false)} onRegister={() => { setShowPremiumModal(false); onGoToRegister(); }} alertMessage={modalAlert} />}
         </form>
       );
     }
