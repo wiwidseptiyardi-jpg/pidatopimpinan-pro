@@ -105,7 +105,6 @@
                 {/* --- KOTAK GAMBAR QRIS --- */}
                 <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 inline-block mb-3">
                   <img 
-                    // GANTI URL DI BAWAH INI DENGAN LINK GAMBAR QRIS ANDA YANG SUDAH DI-UPLOAD (contoh: https://i.ibb.co/qrisanda.png)
                     src="https://i.ibb.co.com/Ng8hKp9C/Screenshot-2026-04-27-194835.png" 
                     alt="QRIS Pembayaran" 
                     className="w-36 h-36 object-contain mx-auto" 
@@ -173,7 +172,7 @@
       const [isHistoryOpen, setIsHistoryOpen] = useState(false);
       
       const [showPaymentModal, setShowPaymentModal] = useState(false);
-      const [paymentModalAlert, setPaymentModalAlert] = useState(''); // State pesan alert premium modal
+      const [paymentModalAlert, setPaymentModalAlert] = useState(''); 
       
       const [guestTokenCount, setGuestTokenCount] = useState(5);
       const previewRef = useRef(null);
@@ -653,22 +652,41 @@
       const [loading, setLoading] = useState(true);
       const [view, setView] = useState('login'); 
       const [isGuest, setIsGuest] = useState(false);
+      
       useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
           if (currentUser) {
             setUser(currentUser);
-            if (!currentUser.isAnonymous) { setUserProfile({ email: currentUser.email, name: currentUser.displayName || 'PENGGUNA' }); setIsGuest(false); }
-            else { const storedSession = localStorage.getItem('pidatoSession'); if (storedSession) { const ps = JSON.parse(storedSession); setIsGuest(true); setUserProfile(ps); } }
-          } else { setUser(null); setUserProfile(null); setIsGuest(false); }
+            if (!currentUser.isAnonymous) { 
+              setUserProfile({ email: currentUser.email, name: currentUser.displayName || 'PENGGUNA' }); 
+              setIsGuest(false); 
+            } else { 
+              const storedSession = localStorage.getItem('pidatoSession'); 
+              if (storedSession) { 
+                const ps = JSON.parse(storedSession); 
+                setIsGuest(true); 
+                setUserProfile(ps); 
+              } 
+            }
+          } else { 
+            setUser(null); 
+            setUserProfile(null); 
+            setIsGuest(false); 
+          }
           setLoading(false);
         });
         return () => unsubscribe();
       }, []);
+      
       const handleGuestLoginSuccess = (e) => { const sd = { name: 'TAMU (UJI COBA)', email: e, role: 'guest' }; localStorage.setItem('pidatoSession', JSON.stringify(sd)); setIsGuest(true); setUserProfile(sd); };
       const handleLogout = async () => { setIsGuest(false); localStorage.removeItem('pidatoSession'); await signOut(auth); setView('login'); };
       const handleGoToRegister = async () => { if (isGuest) { setIsGuest(false); localStorage.removeItem('pidatoSession'); } await signOut(auth); setView('register'); };
+      
       if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#0f172a]"><Loader2 className="animate-spin text-cyan-400" size={40} /></div>;
-      if (user || isGuest) return <MainApp onLogout={handleLogout} userProfile={userProfile} userId={user?.uid || 'guest'} isGuest={isGuest} onGoToRegister={handleGoToRegister} />;
+      
+      // PERBAIKAN: Mencegah form tertutup saat sistem melakukan sign in anonim secara otomatis di latar belakang
+      if ((user && !user.isAnonymous) || isGuest) return <MainApp onLogout={handleLogout} userProfile={userProfile} userId={user?.uid || 'guest'} isGuest={isGuest} onGoToRegister={handleGoToRegister} />;
+      
       return (
         <div className="min-h-screen relative flex flex-col justify-center items-center p-4 overflow-hidden bg-[#0f172a]">
           <div className="absolute inset-0 z-0 pointer-events-none">
@@ -758,7 +776,7 @@
 
     function GuestLoginForm({ setView, onGuestLoginSuccess, onGoToRegister }) {
       const [email, setEmail] = useState(''); const [error, setError] = useState(''); const [isChecking, setIsChecking] = useState(false); const [showPremiumModal, setShowPremiumModal] = useState(false);
-      const [modalAlert, setModalAlert] = useState(''); // State untuk pesan alert pada modal
+      const [modalAlert, setModalAlert] = useState(''); 
 
       const hga = async (e) => {
         e.preventDefault(); setError(''); if (!email) return setError('MASUKKAN EMAIL.');
@@ -793,11 +811,10 @@
             cue = parseInt(localStorage.getItem('guestUsage_' + se) || '0'); 
           }
           
-          // JIKA TOKEN HABIS, TAMPILKAN MODAL PREMIUM DENGAN NOTIFIKASI
+          // JIKA TOKEN HABIS, TAMPILKAN MODAL PREMIUM DENGAN NOTIFIKASI TANPA MENUTUP HALAMAN LOGIN
           if (cud >= 5 || cue >= 5) { 
             setModalAlert('Token gratis Anda sudah habis! Silakan Upgrade Premium untuk mencoba sepuasnya.');
             setShowPremiumModal(true); 
-            await signOut(auth); 
             return; 
           }
           
@@ -811,25 +828,26 @@
             } catch(e) { console.error("Gagal log tamu ke sheet", e); }
           }
 
-          const nUsage = Math.max(cud, cue) + 1;
+          // PERBAIKAN: Token TIDAK BERKURANG saat login. Token hanya berkurang di MainApp saat fitur AI digunakan.
+          const currentUsage = Math.max(cud, cue);
           try {
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'guestUsage', dId), { 
-              usage: nUsage, 
+              usage: currentUsage, 
               email: email, 
               role: 'TAMU (COBA GRATIS)',
               lastUsed: new Date().toISOString() 
             }, { merge: true });
             
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'guestUsage', se), { 
-              usage: nUsage, 
+              usage: currentUsage, 
               email: email, 
               role: 'TAMU (COBA GRATIS)',
               deviceId: dId,
               lastUsed: new Date().toISOString() 
             }, { merge: true });
           } catch (err) {
-            localStorage.setItem('guestUsage_' + dId, nUsage.toString());
-            localStorage.setItem('guestUsage_' + se, nUsage.toString());
+            localStorage.setItem('guestUsage_' + dId, currentUsage.toString());
+            localStorage.setItem('guestUsage_' + se, currentUsage.toString());
           }
 
           localStorage.setItem('pidato_guest_email', email);
