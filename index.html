@@ -171,8 +171,8 @@
         openingSpeech: '', 
         closingSpeech: '',
         pdfContext: '',
-        openingParCount: 2, // Default jumlah paragraf
-        contentParCount: 4, // Default jumlah paragraf
+        openingParCount: 1, // Default diubah menjadi 1 paragraf
+        contentParCount: 1, // Default diubah menjadi 1 paragraf
         closingParCount: 1  // Default jumlah paragraf
       });
 
@@ -701,9 +701,9 @@
                      <h2 className="text-lg font-semibold text-slate-800">4. Isi</h2>
                      <div className="flex items-center gap-3">
                        <div className="flex items-center gap-2">
-                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:block">Hasil AI:</label>
+                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden sm:block">Paragraf:</label>
                          <select name="contentParCount" value={formData.contentParCount} onChange={handleInputChange} className="p-1 px-2 text-xs border border-slate-300 rounded-lg bg-slate-50 outline-none focus:ring-1 focus:ring-indigo-500 font-bold" title="Jumlah paragraf dari setiap Poin">
-                           {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} Paragraf</option>)}
+                           {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
                          </select>
                        </div>
                      </div>
