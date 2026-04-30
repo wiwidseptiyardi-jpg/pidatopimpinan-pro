@@ -369,7 +369,15 @@
         if (!(await checkAndConsumeGuestToken())) return;
         setGeneratingPantun(true);
         try {
-          const text = await fetchGeminiWithBackoff(`Buatkan HANYA 1 bait pantun penutup pidato (4 baris bersajak a-b-a-b) untuk acara ${formData.eventName}. Pisahkan antara sampiran (baris 1-2) dan isi (baris 3-4) dengan memberikan baris kosong (enter) di antaranya agar rima terlihat jelas. Jangan berikan pengantar, pilihan, atau opsi lain. Gunakan HURUF KAPITAL.`);
+          // Menambahkan konteks isi sambutan agar pantun sinkron
+          let contextStr = `Acara: ${formData.eventName}.`;
+          const contentContext = points.filter(p => p.trim() !== '').join('. ');
+          if (contentContext) {
+             contextStr += ` Inti pesan sambutan: "${contentContext.substring(0, 800)}".`;
+          }
+          
+          const prompt = `Buatkan HANYA 1 bait pantun penutup pidato (4 baris bersajak a-b-a-b). Konteks: ${contextStr} Sesuaikan isi atau makna pantun (baris 3 dan 4) dengan inti pesan sambutan tersebut. Pisahkan antara sampiran (baris 1-2) dan isi (baris 3-4) dengan memberikan baris kosong (enter) di antaranya agar rima terlihat jelas. Jangan berikan pengantar, pilihan, atau opsi lain. Gunakan HURUF KAPITAL.`;
+          const text = await fetchGeminiWithBackoff(prompt);
           if (text) setFormData(p => ({ ...p, closingPantun: text.trim() }));
         } catch (e) { showNotification(e.message); } finally { setGeneratingPantun(false); }
       };
